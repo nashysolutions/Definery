@@ -85,7 +85,7 @@ extension HomeView {
             && viewState.canShowLoadmore
             && !viewState.snapshot.isPlaceholder {
             RMLoadmoreView(states: viewState)
-                .id(UUID())
+                .id("loadMore")
                 .frame(maxWidth: .infinity)
                 .listRowSeparator(.hidden)
                 .onAppear {

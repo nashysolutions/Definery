@@ -11,6 +11,12 @@ import ScreenStateKit
 import WordFeature
 
 struct HomeView: View {
+    private static let shimmerGradient = Gradient(colors: [
+        .black.opacity(0.3),
+        .black,
+        .black.opacity(0.3)
+    ])
+
     @State private var viewState: HomeViewState
     @State private var viewStore: HomeViewStore
 
@@ -67,7 +73,7 @@ extension HomeView {
                 WordCardView(word: word)
                     .listRowSeparator(.hidden)
                     .placeholder(viewState.snapshot)
-                    .shimmering(active: viewState.snapshot.isPlaceholder)
+                    .shimmering(active: viewState.snapshot.isPlaceholder, gradient: HomeView.shimmerGradient)
             }
 
             loadMoreSection

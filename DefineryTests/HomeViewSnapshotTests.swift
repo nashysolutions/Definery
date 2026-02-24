@@ -101,9 +101,13 @@ extension HomeViewSnapshotTests {
     ) -> HomeViewState {
         let viewState = HomeViewState()
         if isPlaceholder {
-            viewState.snapshot = .placeholder
+            viewState.words = Word.mocks
+            viewState.selectedLanguage = selectedLanguage
+            viewState.isPlaceholder = true
         } else {
-            viewState.snapshot = HomeSnapshot(words: words, selectedLanguage: selectedLanguage)
+            viewState.words = words
+            viewState.selectedLanguage = selectedLanguage
+            viewState.isPlaceholder = false
         }
         if let errorMessage = errorMessage {
             viewState.displayError = DisplayableError(message: errorMessage)
@@ -149,4 +153,3 @@ extension HomeViewSnapshotTests {
         #expect(failure == nil, "\(failure ?? "")")
     }
 }
-

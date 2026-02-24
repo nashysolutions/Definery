@@ -34,7 +34,7 @@ struct HomeView: View {
     var contentBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             LanguageSegmentedPicker(
-                selected: viewState.snapshot.selectedLanguage
+                selected: viewState.selectedLanguage
             ) { language in
                 viewStore.receive(action: .selectLanguage(language))
             }
@@ -54,7 +54,7 @@ extension HomeView {
     private var content: some View {
         if viewState.hasError {
             errorState
-        } else if viewState.snapshot.isPlaceholder || viewState.hasWords {
+        } else if viewState.isPlaceholder || viewState.hasWords {
             wordList
         } else {
             emptyState
@@ -63,11 +63,11 @@ extension HomeView {
 
     private var wordList: some View {
         List {
-            ForEach(viewState.snapshot.words) { word in
+            ForEach(viewState.words) { word in
                 WordCardView(word: word)
                     .listRowSeparator(.hidden)
-                    .placeholder(viewState.snapshot)
-                    .shimmering(active: viewState.snapshot.isPlaceholder)
+                    .placeholder(viewState)
+                    .shimmering(active: viewState.isPlaceholder)
             }
 
             loadMoreSection
@@ -76,14 +76,14 @@ extension HomeView {
         .refreshable {
             await viewStore.isolatedReceive(action: .refresh)
         }
-        .disabled(viewState.snapshot.isPlaceholder)
+        .disabled(viewState.isPlaceholder)
     }
 
     @ViewBuilder
     private var loadMoreSection: some View {
-        if !viewState.snapshot.words.isEmpty
+        if !viewState.words.isEmpty
             && viewState.canShowLoadmore
-            && !viewState.snapshot.isPlaceholder {
+            && !viewState.isPlaceholder {
             RMLoadmoreView(states: viewState)
                 .id(UUID())
                 .frame(maxWidth: .infinity)

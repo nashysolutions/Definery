@@ -74,12 +74,14 @@ actor HomeViewStore: ScreenActionStore {
 
 extension HomeViewStore {
     private func loadWords() async throws {
-        let selectedLanguage = await state?.snapshot.selectedLanguage ?? .english
+        let selectedLanguage = await state?.selectedLanguage ?? .english
         let loader = loaderFactory(selectedLanguage)
         let words = try await loader.load()
 
         await state?.updateState { state in
-            state.snapshot = HomeSnapshot(words: words, selectedLanguage: selectedLanguage)
+            state.words = words
+            state.selectedLanguage = selectedLanguage
+            state.isPlaceholder = false
         }
 
         /// sometimes free apis return less than needed words
@@ -89,19 +91,17 @@ extension HomeViewStore {
 
     private func loadMore() async throws {
         guard let state = state else { return }
-        
-        let currentSnapshot = await state.snapshot
-        let loader = loaderFactory(currentSnapshot.selectedLanguage)
+
+        let currentLanguage = await state.selectedLanguage
+        let currentWords = await state.words
+        let loader = loaderFactory(currentLanguage)
         let newWords = try await loader.load()
 
-        let uniqueNewWords = newWords.filter { !currentSnapshot.words.contains($0) }
-        let allWords = currentSnapshot.words + uniqueNewWords
+        let uniqueNewWords = newWords.filter { !currentWords.contains($0) }
+        let allWords = currentWords + uniqueNewWords
 
         await state.updateState { state in
-            state.snapshot = HomeSnapshot(
-                words: allWords,
-                selectedLanguage: currentSnapshot.selectedLanguage
-            )
+            state.words = allWords
         }
 
         // We will never load all words in this app
@@ -111,14 +111,18 @@ extension HomeViewStore {
     private func selectLanguage(_ language: Locale.LanguageCode) async throws {
         // Show placeholder with new language selected immediately
         await state?.updateState { state in
-            state.snapshot = .placeholder(for: language)
+            state.words = Word.mocks
+            state.selectedLanguage = language
+            state.isPlaceholder = true
         }
 
         let loader = loaderFactory(language)
         let words = try await loader.load()
 
         await state?.updateState { state in
-            state.snapshot = HomeSnapshot(words: words, selectedLanguage: language)
+            state.words = words
+            state.selectedLanguage = language
+            state.isPlaceholder = false
         }
     }
 }
@@ -127,12 +131,14 @@ extension HomeViewStore {
 
 extension HomeViewStore {
     private func handleError(_ error: Error, for action: Action) async {
-        let currentLanguage = await state?.snapshot.selectedLanguage ?? .english
+        let currentLanguage = await state?.selectedLanguage ?? .english
 
         switch action {
         case .loadWords, .refresh, .selectLanguage:
             await state?.updateState { state in
-                state.snapshot = HomeSnapshot(words: [], selectedLanguage: currentLanguage)
+                state.words = []
+                state.selectedLanguage = currentLanguage
+                state.isPlaceholder = false
             }
         case .loadMore:
             await state?.ternimateLoadmoreView()

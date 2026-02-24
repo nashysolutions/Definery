@@ -12,8 +12,18 @@ import ScreenStateKit
 
 @MainActor @Observable
 final class HomeViewState: LoadmoreScreenState, StateUpdatable {
-    var snapshot: HomeSnapshot = .placeholder
+    var words: [Word] = Word.mocks
+    var selectedLanguage: Locale.LanguageCode = .english
+    var isPlaceholder: Bool = true
 
-    var hasWords: Bool { snapshot.hasWords }
+    var hasWords: Bool { !words.isEmpty && !isPlaceholder }
     var hasError: Bool { displayError?.errorDescription != nil }
+}
+
+// MARK: - PlaceholderRepresentable
+
+extension HomeViewState: PlaceholderRepresentable {
+    static var placeholder: HomeViewState {
+        HomeViewState()
+    }
 }

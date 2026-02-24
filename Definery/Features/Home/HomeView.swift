@@ -29,6 +29,9 @@ struct HomeView: View {
             await viewStore.binding(state: viewState)
             viewStore.receive(action: .loadWords)
         }
+        .onDisappear {
+            viewStore.cancelAll()
+        }
     }
 
     var contentBody: some View {

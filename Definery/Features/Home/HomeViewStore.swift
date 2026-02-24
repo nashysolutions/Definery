@@ -13,6 +13,7 @@ typealias WordLoaderFactory = @Sendable (Locale.LanguageCode) -> WordLoaderProto
 actor HomeViewStore: ScreenActionStore {
     private var state: HomeViewState?
     private let actionLocker = ActionLocker.isolated
+    private let cancelBag = CancelBag()
 
     enum Action: ActionLockable, LoadingTrackable, Hashable {
         case loadWords
@@ -28,6 +29,17 @@ actor HomeViewStore: ScreenActionStore {
                 return false
             }
         }
+
+        var cancelIdentifier: String {
+            switch self {
+            case .loadWords, .refresh:
+                return "wordLoad"
+            case .loadMore:
+                return "loadMore"
+            case .selectLanguage:
+                return "selectLanguage"
+            }
+        }
     }
 
     private let loaderFactory: WordLoaderFactory
@@ -41,10 +53,22 @@ actor HomeViewStore: ScreenActionStore {
     }
 
     nonisolated func receive(action: Action) {
-        Task { await isolatedReceive(action: action) }
+        Task {
+            // Cancel any in-flight word load when a language change is dispatched
+            if case .selectLanguage = action {
+                await cancelBag.cancel(forIdentifier: Action.loadWords.cancelIdentifier)
+            }
+            let task = Task { await self.isolatedReceive(action: action) }
+            await cancelBag.store(task: task, identifier: action.cancelIdentifier)
+        }
+    }
+
+    nonisolated func cancelAll() {
+        Task { await cancelBag.cancelAll() }
     }
 
     func isolatedReceive(action: Action) async {
+        assert(state != nil, "HomeViewStore: action dispatched before binding(state:) was called.")
         guard await actionLocker.canExecute(action) else { return }
         await state?.loadingStarted(action: action)
 
@@ -61,6 +85,8 @@ actor HomeViewStore: ScreenActionStore {
             if case .loadWords = action {
                 await state?.updateState { $0.displayError = nil }
             }
+        } catch is CancellationError {
+            // Task was intentionally cancelled — silently drop
         } catch {
             await handleError(error, for: action)
         }
@@ -75,8 +101,10 @@ actor HomeViewStore: ScreenActionStore {
 extension HomeViewStore {
     private func loadWords() async throws {
         let selectedLanguage = await state?.snapshot.selectedLanguage ?? .english
+        try Task.checkCancellation()
         let loader = loaderFactory(selectedLanguage)
         let words = try await loader.load()
+        try Task.checkCancellation()
 
         await state?.updateState { state in
             state.snapshot = HomeSnapshot(words: words, selectedLanguage: selectedLanguage)
@@ -89,10 +117,12 @@ extension HomeViewStore {
 
     private func loadMore() async throws {
         guard let state = state else { return }
-        
+
         let currentSnapshot = await state.snapshot
+        try Task.checkCancellation()
         let loader = loaderFactory(currentSnapshot.selectedLanguage)
         let newWords = try await loader.load()
+        try Task.checkCancellation()
 
         let uniqueNewWords = newWords.filter { !currentSnapshot.words.contains($0) }
         let allWords = currentSnapshot.words + uniqueNewWords
@@ -113,9 +143,11 @@ extension HomeViewStore {
         await state?.updateState { state in
             state.snapshot = .placeholder(for: language)
         }
+        try Task.checkCancellation()
 
         let loader = loaderFactory(language)
         let words = try await loader.load()
+        try Task.checkCancellation()
 
         await state?.updateState { state in
             state.snapshot = HomeSnapshot(words: words, selectedLanguage: language)

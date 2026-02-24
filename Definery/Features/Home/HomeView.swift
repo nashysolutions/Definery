@@ -5,20 +5,14 @@
 //  Created by Anthony on 3/1/26.
 //
 
-import Shimmer
 import SwiftUI
 import ScreenStateKit
 import WordFeature
 
 struct HomeView: View {
-    private static let shimmerGradient = Gradient(colors: [
-        .black.opacity(0.3),
-        .black,
-        .black.opacity(0.3)
-    ])
-
     @State private var viewState: HomeViewState
     @State private var viewStore: HomeViewStore
+    @State private var shimmerPhase: CGFloat = 0
 
     init(viewStore: HomeViewStore, viewState: HomeViewState) {
         self._viewStore = State(initialValue: viewStore)
@@ -34,6 +28,18 @@ struct HomeView: View {
         .task {
             await viewStore.binding(state: viewState)
             viewStore.receive(action: .loadWords)
+        }
+        .onChange(of: viewState.snapshot.isPlaceholder, initial: true) { _, isPlaceholder in
+            if isPlaceholder {
+                shimmerPhase = 0
+                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    shimmerPhase = 1
+                }
+            } else {
+                withAnimation(.none) {
+                    shimmerPhase = 0
+                }
+            }
         }
     }
 
@@ -73,7 +79,7 @@ extension HomeView {
                 WordCardView(word: word)
                     .listRowSeparator(.hidden)
                     .placeholder(viewState.snapshot)
-                    .shimmering(active: viewState.snapshot.isPlaceholder, gradient: HomeView.shimmerGradient)
+                    .modifier(PhaseShimmerModifier(phase: shimmerPhase, isActive: viewState.snapshot.isPlaceholder))
             }
 
             loadMoreSection
@@ -155,3 +161,52 @@ extension HomeView {
         .preferredColorScheme(.dark)
 }
 #endif
+
+// MARK: - PhaseShimmerModifier
+
+/// A shimmer modifier driven by an externally-provided animation phase.
+///
+/// Unlike the Shimmer library's built-in `.shimmering()`, which creates a
+/// per-cell `@State isInitialState` that resets whenever SwiftUI recycles
+/// the view, `PhaseShimmerModifier` is `Animatable` and receives its phase
+/// from the parent view. All cells in a `ForEach` share the same animated
+/// phase value, so the animation plays continuously and in sync regardless
+/// of cell recycling.
+///
+/// - Parameters:
+///   - phase: Animated value from 0 (band off-screen left) to 1 (band off-screen right).
+///            Drive this with a `repeatForever(autoreverses: false)` animation on the parent.
+///   - isActive: When `false` the modifier is a no-op; content is returned unchanged.
+private struct PhaseShimmerModifier: ViewModifier, Animatable {
+    var animatableData: CGFloat {
+        get { phase }
+        set { phase = newValue }
+    }
+
+    var phase: CGFloat
+    let isActive: Bool
+
+    private static let shimmerColors: [Color] = [.clear, .white.opacity(0.55), .clear]
+
+    func body(content: Content) -> some View {
+        if isActive {
+            content.overlay(
+                GeometryReader { geo in
+                    let bandWidth = geo.size.width * 0.65
+                    let travel = geo.size.width + bandWidth
+                    LinearGradient(
+                        colors: Self.shimmerColors,
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: bandWidth)
+                    .offset(x: phase * travel - bandWidth)
+                    .blendMode(.screen)
+                }
+                .clipped()
+            )
+        } else {
+            content
+        }
+    }
+}

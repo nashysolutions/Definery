@@ -68,7 +68,7 @@ actor HomeViewStore: ScreenActionStore {
     }
 
     func isolatedReceive(action: Action) async {
-        assert(state != nil, "HomeViewStore: action dispatched before binding(state:) was called.")
+        guard state != nil else { return }
         guard await actionLocker.canExecute(action) else { return }
         await state?.loadingStarted(action: action)
 

@@ -40,6 +40,10 @@ actor HomeViewStore: ScreenActionStore {
         self.state = state
     }
 
+    func send(action: Action) async {
+        await isolatedReceive(action: action)
+    }
+
     nonisolated func receive(action: Action) {
         Task { await isolatedReceive(action: action) }
     }
@@ -89,7 +93,7 @@ extension HomeViewStore {
 
     private func loadMore() async throws {
         guard let state = state else { return }
-        
+
         let currentSnapshot = await state.snapshot
         let loader = loaderFactory(currentSnapshot.selectedLanguage)
         let newWords = try await loader.load()

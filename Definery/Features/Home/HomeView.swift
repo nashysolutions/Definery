@@ -27,7 +27,7 @@ struct HomeView: View {
         .onShowError($viewState.displayError)
         .task {
             await viewStore.binding(state: viewState)
-            viewStore.receive(action: .loadWords)
+            await viewStore.send(action: .loadWords)
         }
     }
 
@@ -74,7 +74,7 @@ extension HomeView {
         }
         .listStyle(.plain)
         .refreshable {
-            await viewStore.isolatedReceive(action: .refresh)
+            await viewStore.send(action: .refresh)
         }
         .disabled(viewState.snapshot.isPlaceholder)
     }

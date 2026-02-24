@@ -34,7 +34,7 @@ final class HomeViewStoreTests {
         let sut = await makeSUT()
 
         sut.loader.complete(with: .success([]))
-        await sut.store.isolatedReceive(action: .loadWords)
+        await sut.store.send(action: .loadWords)
 
         #expect(sut.state.snapshot.words.isEmpty)
     }
@@ -71,7 +71,7 @@ final class HomeViewStoreTests {
         let expectedWords = [uniqueWord()]
 
         sut.loader.complete(with: .success(expectedWords))
-        await sut.store.isolatedReceive(action: .loadWords)
+        await sut.store.send(action: .loadWords)
 
         #expect(sut.state.snapshot.words == expectedWords)
     }
@@ -102,8 +102,8 @@ final class HomeViewStoreTests {
 
             sut.loader.complete(with: .success([]))
 
-            async let first: () = sut.store.isolatedReceive(action: .loadWords)
-            async let second: () = sut.store.isolatedReceive(action: .loadWords)
+            async let first: () = sut.store.send(action: .loadWords)
+            async let second: () = sut.store.send(action: .loadWords)
 
             _ = await (first, second)
 
@@ -117,7 +117,7 @@ final class HomeViewStoreTests {
         let sut = await makeSUT()
 
         sut.loader.complete(with: .success([]))
-        await sut.store.isolatedReceive(action: .loadMore)
+        await sut.store.send(action: .loadMore)
 
         #expect(sut.loader.loadCallCount == 1)
     }
@@ -191,8 +191,8 @@ final class HomeViewStoreTests {
             let sut = await makeSUT()
 
             sut.loader.complete(with: .success([]))
-            async let firstLoad: () = sut.store.isolatedReceive(action: .loadMore)
-            async let secondLoad: () = sut.store.isolatedReceive(action: .loadMore)
+            async let firstLoad: () = sut.store.send(action: .loadMore)
+            async let secondLoad: () = sut.store.send(action: .loadMore)
 
             _ = await (firstLoad, secondLoad)
 
